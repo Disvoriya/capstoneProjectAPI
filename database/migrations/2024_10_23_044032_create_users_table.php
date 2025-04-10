@@ -16,7 +16,10 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('password');
             $table->string('photo_file')->nullable();
-            $table->enum('competence', ['UI/UX Дизайнер', 'Разработчик', 'Контент-менеджер', 'Маркетолог', 'Тестировщик', 'Проектный менеджер', 'Аналитик', 'Системный администратор'])->default('Тестировщик');
+            $table->enum('competence', ['UI/UX Дизайнер', 'Разработчик',
+                'Контент-менеджер', 'Маркетолог', 'Тестировщик', 'Проектный менеджер',
+                'Аналитик', 'Системный администратор'])
+                ->default('Тестировщик');
             $table->string('api_token')->nullable();
             $table->foreignId('role_id')->constrained('roles')->onDelete('cascade')->default(2);
             $table->timestamps();

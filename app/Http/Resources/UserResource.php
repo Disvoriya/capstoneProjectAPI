@@ -3,6 +3,8 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class UserResource extends JsonResource
 {
@@ -26,5 +28,10 @@ class UserResource extends JsonResource
             'completed_tasks' => $completedTasks,
             'tasks' => TaskResource::collection($taskInProgress),
         ];
+    }
+
+    public function withResponse($request, $response)
+    {
+        $response->setData($this->toArray($request));
     }
 }

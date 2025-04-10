@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Setting;
+use App\Models\CompanyUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class SettingsController extends Controller
 {
@@ -13,15 +16,26 @@ class SettingsController extends Controller
     public function updatePersonal(Request $request)
     {
         $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
-            'patronymic' => 'nullable|string|max:100',
+            'first_name' => 'sometimes|string|max:100',
+            'last_name' => 'sometimes|string|max:100',
+            'patronymic' => 'sometimes|string|max:100',
             'email' => 'sometimes|email|max:255|unique:users,email,' . Auth::id(),
-            'competence' => 'required|in:UI/UX Дизайнер,Разработчик,Контент-менеджер,Маркетолог,Тестировщик,Проектный менеджер,Аналитик,Системный администратор',
+            'competence' => 'sometimes|in:UI/UX Дизайнер,Разработчик,Контент-менеджер,Маркетолог,Тестировщик,Проектный менеджер,Аналитик,Системный администратор',
+            'photo_file' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         $user = Auth::user();
-        $user->update($request->only('first_name', 'last_name', 'patronymic', 'email', 'competence'));
+        $updateData = $request->only('first_name', 'last_name', 'patronymic', 'email', 'competence');
+
+        if ($request->hasFile('photo_file')) {
+            if ($user->photo_file) {
+                Storage::disk('public')->delete($user->photo_file);
+            }
+            $photoPath = $request->file('photo_file')->store('/imageUsers', 'public');
+            $updateData['photo_file'] = $photoPath;
+        }
+
+        $user->update($updateData);
 
         return response()->json(['message' => 'Личная информация успешно обновлена.']);
     }
@@ -40,48 +54,56 @@ class SettingsController extends Controller
         return response()->json(['message' => 'Пароль успешно обновлен.']);
     }
 
-    // Обновление общих настроек (язык)
-    public function updateGeneralSettings(Request $request)
+    // Удаление аккаунта
+    public function deleteAccount()
     {
-        $request->validate([
-            'language' => 'required|in:en,ru,fr,es',
-            'theme'=> 'required|in:light,dark',
+        $user = Auth::user();
+
+        DB::transaction(function () use ($user) {
+            // Анонимизация пользователя (но оставляем user_id)
+            $user->update([
+                'first_name' => 'Deleted',
+                'last_name' => 'User',
+                'patronymic' => null,
+                'email' => 'deleted_' . $user->id . '@example.com',
+                'password' => null,
+                'photo_file' => null,
+                'api_token' => null,
+                'competence' => 'Тестировщик',
+                'role_id' => null,
+            ]);
+
+            // Удаление связей с компаниями, проектами и настройками
+            DB::table('company_users')->where('user_id', $user->id)->delete();
+            DB::table('project_user')->where('user_id', $user->id)->delete();
+            DB::table('settings')->where('user_id', $user->id)->delete();
+            DB::table('personal_access_tokens')->where('tokenable_id', $user->id)->delete();
+            DB::table('user_activity')->where('user_id', $user->id)->delete();
+
+            // Обновление проектов и задач
+            DB::table('projects')->where('created_by', $user->id)->update(['created_by' => null]);
+            DB::table('tasks')->where('assigned_to', $user->id)->update(['assigned_to' => null]);
+
+            // НЕ трогаем `conversation_messages` и `private_chat_messages`, чтобы сохранить user_id
+        });
+
+        return response()->json(['message' => 'Аккаунт успешно анонимизирован'], 200);
+    }
+
+    // Обновить информацию о пользователе в компании
+    public function updatePersonalEmployee(Request $request)
+    {
+        $validated = $request->validate([
+            'company_id' => 'required|exists:companies,id',
+            'role' => 'sometimes|in:Owner,Admin,Manager,Developer,Designer,HR,Other',
+            'status' => 'sometimes|in:Active,Pending,Inactive'
         ]);
 
-        $setting = Setting::where('user_id', Auth::id())->first();
-        if (!$setting) {
-            $setting = new Setting();
-            $setting->user_id = Auth::id();
-        }
-        $setting->update($request->only('language', 'theme'));
+        $companyUser = CompanyUser::where('company_id', $validated['company_id'])->where('user_id', Auth::id())->firstOrFail();
+        $companyUser->update($validated);
 
-        return response()->json(['message' => 'Общие настройки успешно обновлены.']);
+        return response()->json(['message' => 'Настройки профиля сотрулника успешно обновлены.']);
     }
-    /*
-     * <button type="button" class="text-button" :class="{'seting-active-btn': currentForm === 'generalSetting'}" @click="showForm('generalSetting')">Общие</button>
-        <form v-show="currentForm === 'generalSetting'" id="generalSetting" method="post" class="mt-4 form-section" @submit.prevent="updateGeneralSettings">
-          <div class="mb-3">
-            <label for="language" class="form-label">Язык</label>
-            <select id="language" class="form-select form-control" v-model="language">
-              <option value="en">English</option>
-              <option value="ru">Русский</option>
-              <option value="fr">Français</option>
-              <option value="es">Español</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label for="theme" class="form-label">Тема</label>
-            <select id="theme" class="form-select form-control" v-model="theme">
-              <option value="light">Светлая</option>
-              <option value="dark">Темная</option>
-            </select>
-          </div>
-          <button type="submit" class="custom-btn">
-            Сохранить
-          </button>
-        </form>
-
-     */
 
     // Обновление настроек уведомлений
     public function updateNotificationSettings(Request $request)
@@ -100,30 +122,5 @@ class SettingsController extends Controller
 
         return response()->json(['message' => 'Настройки уведомлений успешно обновлены.']);
     }
-    /*
-     *           <button type="button" class="text-button" :class="{'seting-active-btn': currentForm === 'notifSetting'}" @click="showForm('notifSetting')">Уведомления</button>
-     *         <form v-show="currentForm === 'notifSetting'" id="notifSetting" method="post" class="mt-4 form-section">
-          <div class="mb-3">
-            <label class="switch mr-2">
-              <input type="checkbox">
-              <span class="slider"></span>
-            </label> Новые задачи
-          </div>
-          <div class="mb-3">
-            <label class="switch mr-2">
-              <input type="checkbox" checked>
-              <span class="slider"></span>
-            </label> Дедлайн задач
-          </div>
-          <div class="mb-3">
-            <label class="switch mr-2">
-              <input type="checkbox">
-              <span class="slider"></span>
-            </label> Обновление задач
-          </div>
-          <button type="submit" class="custom-btn">
-            Сохранить
-          </button>
-        </form>
-     */
+
 }

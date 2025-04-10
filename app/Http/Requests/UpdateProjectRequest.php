@@ -20,6 +20,7 @@ class UpdateProjectRequest extends FormRequest
             'end_date' => 'sometimes|date_format:Y-m-d|after:start_date',
             'team_size' => 'sometimes|required|integer|min:1',
             'note' => 'sometimes|string|max:255',
+            'company_id' => 'sometimes|exists:companies,id',
         ];
     }
 }

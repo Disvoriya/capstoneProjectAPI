@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('note')->unique();
             $table->string('invitation_code')->unique();
             $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('company_id')->nullable()->constrained('companies')->cascadeOnDelete();
             $table->timestamps();
         });
     }

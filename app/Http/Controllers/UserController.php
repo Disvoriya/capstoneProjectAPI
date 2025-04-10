@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserActivity;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -17,7 +18,6 @@ class UserController extends Controller
         $users = User::all();
         return UserResource::collection($users);
     }
-
 
     public function store(StoreUserRequest $request)
     {
@@ -43,69 +43,18 @@ class UserController extends Controller
         return response()->json(['data' => ['id' => $user->id, 'status' => 'Пользователь создан']], 201);
     }
 
-    public function show($id)
+    public function show()
     {
-        $user = User::find($id);
+        $user = Auth::user();
         if (!$user) {
             return response()->json(['message' => 'Пользователь не найден'], 404);
         }
         return new UserResource($user);
     }
 
-    /*
-    public function getUserActivity($userId, $period)
+    public function getUserActivity()
     {
-        $query = UserActivity::where('user_id', $userId);
-
-        switch ($period) {
-            case 'week':
-                // Получаем активности за последние 7 дней
-                $query->where('activity_time', '>=', now()->subWeek());
-                $groupBy = 'DAYOFWEEK(activity_time)'; // Группируем по номеру дня недели
-                break;
-            case 'month':
-                // Получаем активности за последний месяц
-                $query->where('activity_time', '>=', now()->subMonth());
-                $groupBy = 'DATE_FORMAT(activity_time, "%Y-%m")';
-                break;
-            case 'year':
-                // Получаем активности за последний год
-                $query->where('activity_time', '>=', now()->subYear());
-                $groupBy = 'YEAR(activity_time)';
-                break;
-            default:
-                return response()->json(['error' => 'Invalid period specified'], 400);
-        }
-
-        // Выполняем группировку и подсчет активности
-        $activities = $query->selectRaw("$groupBy as period, COUNT(*) as activity_count")
-            ->groupBy('period')
-            ->orderBy('period')
-            ->get();
-
-        // Получаем текстовые представления дней недели
-        $daysOfWeek = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
-
-        // Форматируем данные для графиков
-        $formattedData = $activities->map(function ($activity) use ($daysOfWeek) {
-            return [
-                'period' => $daysOfWeek[$activity->period - 1], // Преобразуем номер дня в текст
-                'activity_count' => (int) $activity->activity_count, // Убедимся, что это целое число
-            ];
-        });
-
-        // Возвращаем данные в формате JSON
-        return response()->json($formattedData);
-    }
-    public function showUserActivity(Request $request, $userId)
-    {
-        $period = $request->get('period');
-        return $this->getUserActivity($userId, $period);
-    }
-    */
-
-    public function getUserActivity($userId)
-    {
+        $userId = Auth::id();
         UserActivity::where('activity_time', '<', now()->subWeek())->delete();
 
         $query = UserActivity::where('user_id', $userId)
@@ -128,9 +77,18 @@ class UserController extends Controller
         return response()->json($formattedData);
     }
 
-    public function showUserActivity(Request $request, $userId)
+    public function showUserActivity()
     {
-        return $this->getUserActivity($userId);
+        return $this->getUserActivity();
+    }
+
+    public function destroy($id)
+    {
+        $user = User::find($id);
+
+        $user->delete();
+
+        return response()->json(['message' => 'Пользователь удален'], 200);
     }
 
 

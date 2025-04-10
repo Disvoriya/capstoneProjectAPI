@@ -18,6 +18,7 @@ class Project extends Model
         'note',
         'invitation_code',
         'created_by',
+        'company_id',
     ];
 
     protected $hidden = [
@@ -48,5 +49,10 @@ class Project extends Model
     public function stages()
     {
         return $this->hasMany(Stage::class);
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

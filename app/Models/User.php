@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -75,6 +76,18 @@ class User extends Authenticatable
     public function conversations()
     {
         return $this->belongsToMany(Conversation::class, 'conversation_users', 'user_id', 'conversation_id');
+    }
+
+    public function companies()
+    {
+        return $this->belongsToMany(Company::class, 'company_users')
+            ->withPivot(['role', 'status', 'permissions', 'joined_at'])
+            ->withTimestamps();
+    }
+
+    public function sendPasswordResetNotification($token)
+    {
+        $this->notify(new ResetPasswordNotification($token));
     }
 
 }

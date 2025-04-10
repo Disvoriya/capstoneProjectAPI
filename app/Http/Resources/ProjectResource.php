@@ -17,6 +17,7 @@ class ProjectResource extends JsonResource
             'end_date' => $this->end_date,
             'team_size' => $this->team_size,
             'note' => $this->note,
+            'company_id' => $this->company_id,
             'invitation_code' => $this->invitation_code,
             'participants' => $this->participants->map(function ($participant) {
                 return [

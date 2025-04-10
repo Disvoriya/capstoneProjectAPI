@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Resources\ProjectResource;
+use App\Models\CompanyUser;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\UserActivity;
@@ -15,54 +16,29 @@ use Illuminate\Support\Str;
 
 class ProjectController extends Controller
 {
-    public function userProjects($id)
+    public function index(Request $request)
     {
-        $user = User::find($id);
-        if (!$user) {
-            return response()->json(['message' => 'Пользователь не найден'], 404);
-        }
-
-        $projects = Project::with('participants')
-            ->whereHas('participants', function ($query) use ($id) {
-                $query->where('user_id', $id);
-            })->get();
-
-        $formattedProjects = $projects->map(function ($project) {
-            return [
-                'id' => $project->id,
-                'created_by' => $project->creator->first_name . " " . $project->creator->last_name,
-                'created_by_photo_file' => $project->creator->photo_file,
-                'name' => $project->name,
-                'description' => $project->description,
-                'start_date' => $project->start_date,
-                'end_date' => $project->end_date,
-                'team_size' => $project->team_size,
-                'note' => $project->note,
-                'invitation_code' => $project->invitation_code,
-                'participants' => $project->participants->map(function ($participant) {
-                    return [
-                        'id' => $participant->id,
-                        'participant_name' => $participant->first_name . " " . $participant->last_name,
-                        'photo_file' => $participant->photo_file,
-                    ];
-                })
-            ];
-        });
-
-        return response()->json($formattedProjects);
-    }
-
-    public function index(Request $request, $id)
-    {
+        $userId = Auth::id();
         $search = $request->input('search');
+        $filter = $request->input('filter', 'all');
 
-        $projects = Project::with('participants')
-            ->whereHas('participants', function ($query) use ($id) {
-                $query->where('user_id', $id);
-            })->where(function ($query) use ($search) {
-            $query->where('name', 'LIKE', "%{$search}%")
-                ->orWhere('description', 'LIKE', "%{$search}%");
-        })->get();
+        $projects = Project::with('participants', 'company')
+            ->whereHas('participants', function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            })
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('name', 'LIKE', "%{$search}%")
+                        ->orWhere('description', 'LIKE', "%{$search}%");
+                });
+            })
+            ->when($filter === 'work', function ($query) {
+                $query->whereNotNull('company_id');
+            })
+            ->when($filter === 'personal', function ($query) {
+                $query->whereNull('company_id');
+            })
+            ->get();
 
         $formattedProjects = $projects->map(function ($project) {
             return [
@@ -75,6 +51,8 @@ class ProjectController extends Controller
                 'end_date' => $project->end_date,
                 'team_size' => $project->team_size,
                 'note' => $project->note,
+                'company_id' => $project->company_id,
+                'company_name' => $project->company ? $project->company->name : null,
                 'invitation_code' => $project->invitation_code,
                 'participants' => $project->participants->map(function ($participant) {
                     return [
@@ -160,8 +138,7 @@ class ProjectController extends Controller
         return response()->json(['message' => 'Проект успешно удален.'], 200);
     }
 
-
-    public function joinProject(Request $request)
+    public function join(Request $request)
     {
         $request->validate([
             'invitation_code' => 'required|string',
@@ -175,6 +152,16 @@ class ProjectController extends Controller
 
         if ($project->participants()->where('user_id', Auth::id())->exists()) {
             return response()->json(['error' => 'Вы уже являетесь участником этого проекта.'], 400);
+        }
+
+        if ($project->company_id !== null) {
+            $isInCompany = CompanyUser::where('company_id', $project->company_id)
+                ->where('user_id', Auth::id())
+                ->exists();
+
+            if (!$isInCompany) {
+                return response()->json(['error' => 'Чтобы присоединиться к проекту, вы должны быть участником соответствующего рабочего пространства.'], 403);
+            }
         }
 
         $currentParticipantCount = $project->participants()->count();

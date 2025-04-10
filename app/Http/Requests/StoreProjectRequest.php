@@ -22,6 +22,7 @@ class StoreProjectRequest extends FormRequest
             'created_by' => 'exists:users,id',
             'note' => 'required|string|max:255',
             'invitation_code' => 'unique:projects',
+            'company_id' => 'nullable|exists:companies,id',
         ];
     }
 

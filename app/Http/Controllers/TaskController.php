@@ -12,6 +12,8 @@ use App\Models\User;
 use App\Models\UserActivity;
 use App\Notifications\TaskAssigned;
 use App\Notifications\TaskUpdated;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TaskController extends Controller
 {
@@ -34,23 +36,33 @@ class TaskController extends Controller
         return response()->json($tasksByStatus);
     }
 
-
     public function store(TaskRequest $request)
     {
-        if (!Project::where('id', $request->project_id)->exists()) {
-            return $this->notFoundResponse();
+        $user = auth()->user();
+        $project = Project::find($request->project_id);
+
+        if (!$project) {
+            return response()->json([
+                'message' => 'Проект не существует.'
+            ], 404);
+        }
+
+        if ($project->company_id !== null) {
+            $permissionKey = 'create_tasks';
+            $permissionCheckResult = $this->checkCompanyPermission($user, $project->company_id, $permissionKey);
+            if ($permissionCheckResult !== true) {
+                return $permissionCheckResult;
+            }
         }
 
         $validatedData = $request->validated();
         $task = Task::create($validatedData);
 
-        $user = auth()->user();
         UserActivity::create([
             'user_id' => $user->id,
             'activity_type' => 'store_task',
         ]);
 
-        $project = Project::find($request->project_id);
         $taskEndDate = $task->due_date;
 
         if ($taskEndDate > $project->end_date) {
@@ -69,13 +81,6 @@ class TaskController extends Controller
                 return $this->notFoundResponse();
             }
 
-            // Проверяем, назначает ли пользователь сам себе задачу
-            if ($assignedUser->id === $user->id) {
-                // Если задача назначена себе, уведомление не отправляем
-                return response()->json(['message' => 'Задача создана успешно. Вы назначили её себе, поэтому уведомление не было отправлено.'], 201);
-            }
-
-            // Обработка уведомлений
             $setting = Setting::where('user_id', $assignedUser->id)->first();
             if ($setting && $setting->notifications) {
                 $notifications = json_decode($setting->notifications, true);
@@ -85,7 +90,6 @@ class TaskController extends Controller
                         ->where('user_id', $assignedUser->id)
                         ->first();
 
-                    // Проверяем, существует ли назначенный пользователь в проекте
                     if ($projectUser) {
                         $assignedUser->notify(new TaskAssigned($task));
                     }
@@ -100,7 +104,6 @@ class TaskController extends Controller
         return response()->json(['message' => 'Задача создана успешно.'], 201);
     }
 
-
     public function show($id)
     {
         $task = Task::with(['project', 'user'])->findOrFail($id);
@@ -109,16 +112,27 @@ class TaskController extends Controller
 
     public function update(TaskRequest $request, $id)
     {
+        $user = auth()->user();
+
+        $project = Project::find($request->project_id);
+
+        if ($project->company_id !== null) {
+            $permissionKey = 'edit_task';
+            $permissionCheckResult = $this->checkCompanyPermission($user, $project->company_id, $permissionKey);
+            if ($permissionCheckResult !== true) {
+                return $permissionCheckResult;
+            }
+        }
+
         $task = Task::findOrFail($id);
 
         $task->update($request->validated());
-
-        $user = auth()->user();
 
         UserActivity::create([
             'user_id' => $user->id,
             'activity_type' => 'update_task',
         ]);
+
 
         if ($request->assigned_to) {
             $assignedTo = ProjectUser::find($request->assigned_to);
