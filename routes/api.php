@@ -1,20 +1,22 @@
 <?php
 
-use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\PasswordResetController;
-use App\Http\Controllers\ConversationController;
-use App\Http\Controllers\ConversationUserController;
-use App\Http\Controllers\PrivateChatController;
-use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\Chat\ConversationController;
+use App\Http\Controllers\Chat\ConversationUserController;
+use App\Http\Controllers\Chat\PrivateChatController;
+use App\Http\Controllers\Company\CompanyController;
+use App\Http\Controllers\Company\CompanyUserController;
+use App\Http\Controllers\EventController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\Project\ProjectController;
+use App\Http\Controllers\ProjectUserController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\AttachmentController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\NotificationsController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\CompanyController;
-use App\Http\Controllers\CompanyUserController;
-use App\Http\Controllers\EventController;
 
 
 /*
@@ -39,20 +41,23 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/password', [SettingsController::class, 'updatePassword']);
         Route::post('/delete-account', [SettingsController::class, 'deleteAccount']);
         Route::post('/notifications', [SettingsController::class, 'updateNotificationSettings']);
-        Route::post('/personal-employee', [SettingsController::class, 'updatePersonalEmployee']);
     });
 
     Route::apiResource('projects', ProjectController::class);
-    Route::post('/projects/join', [ProjectController::class, 'join']);
+    Route::prefix('projects')->group(function () {
+        Route::post('/join', [ProjectUserController::class, 'join']);
+        Route::apiResource('/participants', ProjectUserController::class);
+    });
 
     Route::apiResource('tasks', TaskController::class);
     Route::get('/project/tasks/{projectId}', [TaskController::class, 'index']);
 
+    Route::apiResource('attachments', AttachmentController::class);
+    Route::get('/attachments/{id}/download', [AttachmentController::class, 'download']);
 
     Route::get('/user/notification', [NotificationsController::class, 'getNotifications']);
-    Route::post('/notification/{notificationId}', [NotificationsController::class, 'markAsRead']);
+    Route::post('/notifications/mark-all-read', [NotificationsController::class, 'markAllAsRead']);
     Route::get('report/{projectId}', [InvoiceController::class, 'Invoice']);
-
 
     Route::prefix('private-chats')->group(function () {
         Route::get('/', [PrivateChatController::class, 'index']);
@@ -81,6 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('company')->group(function () {
         Route::post('/join', [CompanyUserController::class, 'join']);
+        Route::get('/{companyId}/request-leave', [CompanyUserController::class, 'requestLeave']);
         Route::get('/{companyId}/participants', [CompanyUserController::class, 'getCompanyUsers']); // Получить всех пользователей компании
         Route::post('/{companyId}/participant', [CompanyUserController::class, 'store']); // Создать запись
         Route::get('/{companyId}/participant', [CompanyUserController::class, 'show']); // Получить информацию о авторизованном пользователе в конкретной компании

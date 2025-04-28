@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Chat;
 
-use App\Models\Conversation;
+use App\Http\Controllers\Controller;
 use App\Models\PrivateChatMessage;
 use App\Models\User;
 use Illuminate\Http\Request;

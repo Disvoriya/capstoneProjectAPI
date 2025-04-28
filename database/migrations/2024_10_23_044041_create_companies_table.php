@@ -16,7 +16,6 @@ return new class extends Migration
         Schema::create('companies', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->foreignId('owner_id')->constrained('users')->onDelete('cascade');
             $table->string('invitation_code')->unique();
             $table->integer('team_size');
             $table->string('logo')->nullable();

@@ -23,7 +23,6 @@ class User extends Authenticatable
         'photo_file',
         'competence',
         'api_token',
-        'role_id',
     ];
 
     protected $hidden = [
@@ -40,10 +39,6 @@ class User extends Authenticatable
         ];
     }
 
-    public function role()
-    {
-        return $this->belongsTo(Role::class);
-    }
 
     // Определяет, какие задачи назначены пользователю
     public function tasks()
@@ -81,7 +76,7 @@ class User extends Authenticatable
     public function companies()
     {
         return $this->belongsToMany(Company::class, 'company_users')
-            ->withPivot(['role', 'status', 'permissions', 'joined_at'])
+            ->withPivot(['role', 'status', 'permissions', 'joined_at', 'terminated_at'])
             ->withTimestamps();
     }
 

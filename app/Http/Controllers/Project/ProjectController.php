@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Project;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Resources\ProjectResource;
 use App\Models\CompanyUser;
 use App\Models\Project;
-use App\Models\User;
 use App\Models\UserActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -66,7 +66,6 @@ class ProjectController extends Controller
 
         return response()->json($formattedProjects);
     }
-
     public function store(StoreProjectRequest $request)
     {
         $user = auth()->user();
@@ -90,13 +89,11 @@ class ProjectController extends Controller
 
         return new ProjectResource($project);
     }
-
     public function show($id)
     {
         $project = Project::findOrFail($id);
         return new ProjectResource($project);
     }
-
     public function update(UpdateProjectRequest $request, $id)
     {
         $project = Project::find($id);
@@ -138,40 +135,6 @@ class ProjectController extends Controller
         return response()->json(['message' => 'Проект успешно удален.'], 200);
     }
 
-    public function join(Request $request)
-    {
-        $request->validate([
-            'invitation_code' => 'required|string',
-        ]);
 
-        $project = Project::where('invitation_code', $request->input('invitation_code'))->first();
-
-        if (!$project) {
-            return $this->notFoundResponse();
-        }
-
-        if ($project->participants()->where('user_id', Auth::id())->exists()) {
-            return response()->json(['error' => 'Вы уже являетесь участником этого проекта.'], 400);
-        }
-
-        if ($project->company_id !== null) {
-            $isInCompany = CompanyUser::where('company_id', $project->company_id)
-                ->where('user_id', Auth::id())
-                ->exists();
-
-            if (!$isInCompany) {
-                return response()->json(['error' => 'Чтобы присоединиться к проекту, вы должны быть участником соответствующего рабочего пространства.'], 403);
-            }
-        }
-
-        $currentParticipantCount = $project->participants()->count();
-        if ($currentParticipantCount >= $project->team_size) {
-            $project->increment('team_size');
-        }
-
-        $project->participants()->attach(Auth::id());
-
-        return response()->json(['message' => 'Вы успешно добавлены в проект.'], 200);
-    }
 
 }

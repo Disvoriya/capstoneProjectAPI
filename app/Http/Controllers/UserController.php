@@ -30,7 +30,6 @@ class UserController extends Controller
             'email' => $data['email'],
             'password' => $data['password'],
             'photo_file' => $data['photo_file'] ?? null,
-            'role_id' => $data['role_id'],
         ]);
 
         if ($request->hasFile('photo_file')) {

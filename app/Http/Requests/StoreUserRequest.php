@@ -14,12 +14,11 @@ class StoreUserRequest extends FormRequest
     {
         return [
             'last_name' => 'required|string|max:100',
-            'first_name' => 'nullable|string|max:100',
+            'first_name' => 'required|string|max:100',
             'patronymic' => 'nullable|string|max:100',
             'email' => 'required|string|unique:users,email|max:255',
             'password' => 'required|string',
             'photo_file' => 'nullable|image|mimes:jpg,jpeg,png',
-            'role_id' => 'required|integer',
         ];
     }
 

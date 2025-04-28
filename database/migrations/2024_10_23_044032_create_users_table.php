@@ -21,9 +21,17 @@ return new class extends Migration
                 'Аналитик', 'Системный администратор'])
                 ->default('Тестировщик');
             $table->string('api_token')->nullable();
-            $table->foreignId('role_id')->constrained('roles')->onDelete('cascade')->default(2);
             $table->timestamps();
         });
+
+        DB::table('users')->insert([
+            'first_name' => 'Система',
+            'last_name' => 'Пользователь',
+            'email' => 'system@example.com',
+            'photo_file' => 'system/systemUser.jpg',
+            'password' => bcrypt('some-random-password'),
+            'competence' => 'Системный администратор',
+        ]);
     }
 
     public function down()

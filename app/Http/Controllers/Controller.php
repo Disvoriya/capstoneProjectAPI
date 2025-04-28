@@ -50,20 +50,20 @@ class Controller extends BaseController
             'view_project', // Просмотр проектов
             'view_task',    // Просмотр задач
         ];
+      //  надо создать уведомление создателю проекта(а еще у проекта есть company_id, то тому кто имеет права)
 
         // Дополнительные права в зависимости от роли
         $rolePermissions = [
             'Owner' => [
                 'manage_company', // Управление компанией
                 'manage_projects', // Управление проектами
-                'manage_team',     // Управление командой
+                'manage_team',     // Управление командой в компании
                 'create_tasks',    // Создание задач
-                'assign_executors', // Назначение исполнителей
             ],
             'Admin' => [
                 'manage_company',
                 'manage_projects', // Управление проектами
-                'assign_executors', // Назначение исполнителей
+                'manage_team',     // Управление командой в компании
             ],
             'Manager' => [
                 'manage_projects', // Управление проектами
@@ -76,7 +76,7 @@ class Controller extends BaseController
                 'edit_task',       // Редактирование задач
             ],
             'HR' => [
-                'manage_team',     // Управление командой
+                'manage_team',     // Управление командой в компании
             ],
             'Other' => [], // Остальные роли не имеют прав по умолчанию
         ];
@@ -88,10 +88,9 @@ class Controller extends BaseController
     {
         $permissionMessages = [
             'create_tasks'       => 'У вас нет прав для создания задач.',
-            'assign_executors'   => 'У вас нет прав для назначения исполнителей.',
             'manage_company'     => 'У вас нет доступа к управлению компанией.',
             'manage_projects'    => 'У вас нет прав для управления проектами.',
-            'manage_team'        => 'У вас нет прав для управления командой.',
+            'manage_team'        => 'У вас нет прав для управления сотрудниками компании.',
             'edit_task'          => 'У вас нет прав для редактирования задач.',
             'view_company'       => 'У вас нет прав для просмотра компании.',
             'view_project'       => 'У вас нет прав для просмотра проектов.',

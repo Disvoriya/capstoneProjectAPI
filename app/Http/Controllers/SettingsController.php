@@ -90,21 +90,6 @@ class SettingsController extends Controller
         return response()->json(['message' => 'Аккаунт успешно анонимизирован'], 200);
     }
 
-    // Обновить информацию о пользователе в компании
-    public function updatePersonalEmployee(Request $request)
-    {
-        $validated = $request->validate([
-            'company_id' => 'required|exists:companies,id',
-            'role' => 'sometimes|in:Owner,Admin,Manager,Developer,Designer,HR,Other',
-            'status' => 'sometimes|in:Active,Pending,Inactive'
-        ]);
-
-        $companyUser = CompanyUser::where('company_id', $validated['company_id'])->where('user_id', Auth::id())->firstOrFail();
-        $companyUser->update($validated);
-
-        return response()->json(['message' => 'Настройки профиля сотрулника успешно обновлены.']);
-    }
-
     // Обновление настроек уведомлений
     public function updateNotificationSettings(Request $request)
     {

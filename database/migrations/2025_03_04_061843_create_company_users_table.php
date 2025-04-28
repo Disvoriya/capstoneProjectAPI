@@ -16,7 +16,7 @@ return new class extends Migration
             $table->enum('role', ['Owner', 'Admin', 'Manager', 'Developer', 'Designer', 'HR', 'Other']);
             $table->json('permissions')->nullable();
             $table->timestamp('joined_at')->useCurrent();
-            $table->enum('status', ['Active', 'Inactive'])->default('Active');
+            $table->enum('status', ['Active', 'Inactive', 'PendingTermination'])->default('Active');
             $table->dateTime('terminated_at')->nullable();
             $table->timestamps();
         });

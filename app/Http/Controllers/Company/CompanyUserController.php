@@ -1,13 +1,14 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Company;
 
-use App\Models\CompanyUser;
+use App\Http\Controllers\Controller;
 use App\Models\Company;
+use App\Models\CompanyUser;
 use App\Notifications\UserDemotedNotification;
+use App\Notifications\UserLeaveRequestNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 
 class CompanyUserController extends Controller
 {
@@ -81,28 +82,46 @@ class CompanyUserController extends Controller
         return response()->json($companyUser);
     }
 
+
     public function update(Request $request, $companyId, $userId)
     {
         $validated = $request->validate([
-            'role' => 'required|in:Owner,Admin,Manager,Developer,Designer,HR,Other',
+            'role' => 'sometimes|in:Owner,Admin,Manager,Developer,Designer,HR',
+            'status' => 'sometimes|in:Active,Inactive,PendingTermination',
         ]);
 
         $companyUser = CompanyUser::where('company_id', $companyId)
             ->where('user_id', $userId)
             ->firstOrFail();
 
-        $newPermissions = $this->getDefaultPermissions($validated['role']);
-        $companyUser->update([
-            'role' => $validated['role'],
-            'permissions' => json_encode($newPermissions),
-        ]);
+        $updateData = [];
 
-        return response()->json(['message' => "Роль пользователя обновлен, права обнавлены в соотвествие."]);
+        if (isset($validated['role'])) {
+            $updateData['role'] = $validated['role'];
+            $updateData['permissions'] = json_encode($this->getDefaultPermissions($validated['role']));
+        }
+
+        if (isset($validated['status'])) {
+            $updateData['status'] = $validated['status'];
+            $updateData['terminated_at'] = $validated['status'] === 'Active' ? null : $companyUser->terminated_at;
+        }
+
+        $companyUser->update($updateData);
+
+        return response()->json(['message' => 'Данные пользователя успешно обновлены.']);
     }
+
 
     // Изменить статус пользователя на "Inactive" вместо удаления
     public function destroy($companyId, $userId)
     {
+        $user = auth()->user();
+
+        $permissionCheck = $this->checkCompanyPermission($user, $companyId, 'manage_team');
+        if ($permissionCheck !== true) {
+            return $permissionCheck;
+        }
+
         $companyUser = CompanyUser::where('company_id', $companyId)
             ->where('user_id', $userId)
             ->firstOrFail();
@@ -123,6 +142,38 @@ class CompanyUserController extends Controller
         $user->notify(new UserDemotedNotification($company->name, $newPermissions));
 
         return response()->json(['message' => "Статус пользователя обновлен до неактивного, права ограничены."]);
+    }
+
+
+    // Пользователь отправляет "заявку на увольнение"
+    public function requestLeave($companyId)
+    {
+        $user = auth()->user();
+
+        $companyUser = CompanyUser::where('company_id', $companyId)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$companyUser) {
+            return response()->json(['error' => 'Вы не состоите в этой компании.'], 404);
+        }
+
+        if ($companyUser->status === 'PendingTermination') {
+            return response()->json(['message' => 'Вы уже подали заявку на увольнение.'], 400);
+        }
+
+        $companyUser->status = 'PendingTermination';
+        $companyUser->save();
+
+        $managers = CompanyUser::where('company_id', $companyId)->get();
+        foreach ($managers as $manager) {
+            $permissions = json_decode($manager->permissions, true);
+            if (in_array('manage_team', $permissions)) {
+                $manager->user->notify(new UserLeaveRequestNotification($user, $companyId));
+            }
+        }
+
+        return response()->json(['message' => 'Заявка на увольнение отправлена. Ожидайте одобрения.']);
     }
 
 }

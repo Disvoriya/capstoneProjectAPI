@@ -1,7 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Controller;
+use App\Http\Controllers\Request;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Models\Setting;
@@ -25,7 +27,6 @@ class AuthController extends Controller
             return response()->json([
                 'data' => [
                     'user_id' => $user->id,
-                    'role_id' => $user->role_id,
                     'user_token' => $token,
                 ]
             ], 200);
@@ -48,7 +49,6 @@ class AuthController extends Controller
             'email' => $data['email'],
             'password' => $data['password'],
             'photo_file' => $photoPath,
-            'role_id' => $data['role_id'] ?? 2,
         ]);
 
         $token = $user->createToken('api_token')->plainTextToken;
@@ -67,14 +67,13 @@ class AuthController extends Controller
         return response()->json([
             'data' => [
                 'user_id' => $user->id,
-                'role_id' => $user->role_id,
                 'user_token' => $token,
             ]
         ], 201);
 
     }
 
-    public function logout(Request $request)
+    public function logout()
     {
         // Проверяем, что пользователь аутентифицирован
         if (Auth::check()) {

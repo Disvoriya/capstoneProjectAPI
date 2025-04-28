@@ -15,7 +15,8 @@ class Task extends Model
         'due_date',
         'category_id',
         'status',
-        'assigned_to'
+        'assigned_to',
+        'author'
     ];
 
     protected $hidden = [
@@ -37,6 +38,10 @@ class Task extends Model
     {
         return $this->belongsTo(ProjectUser::class, 'assigned_to');
     }
+    public function authorRelation()
+    {
+        return $this->belongsTo(ProjectUser::class, 'author');
+    }
 
 
     // Определяет, к какому проекту принадлежит задача
@@ -51,11 +56,9 @@ class Task extends Model
         return $this->belongsTo(TaskCategory::class, 'category_id');
     }
 
-
-    // Определяет, какие коментарии есть к задаче
-    public function comments()
+    public function attachments()
     {
-        return $this->hasMany(Comment::class);
+        return $this->hasMany(Attachment::class);
     }
 
 }

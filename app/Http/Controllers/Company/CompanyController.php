@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Company;
 
+use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\CompanyUser;
 use App\Models\Project;
@@ -18,7 +19,7 @@ class CompanyController extends Controller
     {
         $user = Auth::user();
 
-        $companies = $user->companies()->with(['owner', 'users'])->get();
+        $companies = $user->companies()->get();
 
         $formattedCompanies = $companies->map(function ($company) {
             return [
@@ -27,8 +28,6 @@ class CompanyController extends Controller
                 'industry' => $company->industry,
                 'team_size' => $company->team_size,
                 'logo' => $company->logo,
-                'created' => $company->owner->first_name . " " . $company->owner->last_name,
-                'created_by_photo_file' => $company->owner->photo_file,
                 'participants' => $company->users->map(function ($user) {
                     return [
                         'id' => $user->id,
@@ -52,7 +51,7 @@ class CompanyController extends Controller
             'team_size' => 'required|integer|min:1',
             'industry' => 'required|in:IT,Finance,Healthcare,Education,Retail,Construction,Marketing,Consulting,Manufacturing,Entertainment,Other',
             'logo' => 'nullable|image|max:1024',
-            'role' => 'required|in:Owner,Admin,Manager',
+            'role' => 'required|in:Owner,Admin',
         ]);
 
         $logoPath = null;
@@ -67,7 +66,6 @@ class CompanyController extends Controller
 
         $company = Company::create([
             'name' => $validated['name'],
-            'owner_id' => Auth::id(),
             'team_size' => $validated['team_size'],
             'logo' => $logoPath,
             'industry' => $validated['industry'],
@@ -90,7 +88,7 @@ class CompanyController extends Controller
 
     public function show($companyId)
     {
-        $company = Company::with(['owner', 'users'])->findOrFail($companyId);
+        $company = Company::findOrFail($companyId);
         $userId = Auth::id();
         $companyUser = CompanyUser::where('company_id', $companyId)
             ->where('user_id', $userId)
@@ -102,12 +100,8 @@ class CompanyController extends Controller
             'industry' => $company->industry,
             'team_size' => $company->team_size,
             'logo' => $company->logo,
+            'invitation_code' => $company->invitation_code,
             'role' => $companyUser->role,
-            'created_by' => [
-                'id' => $company->owner->id,
-                'name' => $company->owner->first_name . ' ' . $company->owner->last_name,
-                'photo' => $company->owner->photo_file,
-            ],
             'participants' => $company->users
                 ->map(function ($user) {
                     return [

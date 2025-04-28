@@ -12,14 +12,18 @@ use App\Models\User;
 use App\Models\UserActivity;
 use App\Notifications\TaskAssigned;
 use App\Notifications\TaskUpdated;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
 
 class TaskController extends Controller
 {
     public function index($projectId)
     {
-        $tasks = Task::with('category')->where('project_id', $projectId)->get();
+        $tasks = Task::with([
+            'category',
+            'projectUser.user',
+            'authorRelation.user',
+        ])->where('project_id', $projectId)
+            ->get();
 
         $tasksByStatus = [
             'to_do' => [],
@@ -35,6 +39,7 @@ class TaskController extends Controller
 
         return response()->json($tasksByStatus);
     }
+
 
     public function store(TaskRequest $request)
     {
@@ -55,8 +60,15 @@ class TaskController extends Controller
             }
         }
 
+        $authorLink = ProjectUser::where('project_id', $request->project_id)
+            ->where('user_id', $user->id)
+            ->first();
+
         $validatedData = $request->validated();
-        $task = Task::create($validatedData);
+        $task = Task::create([
+            ...$validatedData,
+            'author' => $authorLink->id,
+        ]);
 
         UserActivity::create([
             'user_id' => $user->id,
@@ -106,17 +118,33 @@ class TaskController extends Controller
 
     public function show($id)
     {
-        $task = Task::with(['project', 'user'])->findOrFail($id);
+        $task = Task::with([
+            'attachments',
+            'project',
+            'projectUser.user',
+            'authorRelation.user',
+            'category'
+        ])->findOrFail($id);
+
         return new TaskResource($task);
     }
 
-    public function update(TaskRequest $request, $id)
+    public function update(Request $request, $id)
     {
+        $request->validate([
+            'title' => 'sometimes|string|max:255',
+            'project_id' => 'sometimes|exists:projects,id',
+            'category_id' => 'sometimes|exists:task_categories,id',
+            'due_date' => 'sometimes|date_format:Y-m-d',
+            'assigned_to' => 'sometimes|exists:project_user,id',
+            'status' => 'sometimes|string|in:to_do,in_progress,on_correction,done',
+        ]);
+
         $user = auth()->user();
 
         $project = Project::find($request->project_id);
 
-        if ($project->company_id !== null) {
+        if ($project && $project->company_id !== null) {
             $permissionKey = 'edit_task';
             $permissionCheckResult = $this->checkCompanyPermission($user, $project->company_id, $permissionKey);
             if ($permissionCheckResult !== true) {
@@ -124,9 +152,17 @@ class TaskController extends Controller
             }
         }
 
-        $task = Task::findOrFail($id);
+        $data = $request->only([
+            'title',
+            'project_id',
+            'category_id',
+            'due_date',
+            'assigned_to',
+            'status',
+        ]);
 
-        $task->update($request->validated());
+        $task = Task::findOrFail($id);
+        $task->update($data);
 
         UserActivity::create([
             'user_id' => $user->id,

@@ -44,18 +44,16 @@ class NotificationsController extends Controller
     }
 
 
-    public function markAsRead($notificationId)
+    public function markAllAsRead()
     {
-        $notification = Notification::find($notificationId);
+        $user = Auth::user();
 
-        if (!$notification) {
-            return response()->json(['message' => 'Уведомление не найдено.'], 404);
-        }
+        $user->unreadNotifications->each(function ($notification) {
+            $notification->markAsRead();
+        });
 
-        $notification->read_at = now();
-        $notification->save();
-
-        return response()->json(['message' => 'Уведомление отмечено как прочитанное.']);
+        return response()->json(['message' => 'Все уведомления помечены как прочитанные.']);
     }
+
 
 }

@@ -40,9 +40,29 @@ class UserDemotedNotification extends Notification
      */
     public function toArray($notifiable)
     {
+        $translations = [
+            "view_company" => "Просмотр компании",
+            "view_project" => "Просмотр проекта",
+            "view_task" => "Просмотр задач",
+            "manage_company" => "Управление компанией",
+            "manage_projects" => "Управление проектами",
+            "manage_team" => "Управление командой",
+            "create_tasks" => "Создание задач",
+            "edit_task" => "Редактирование задач",
+        ];
+
+        $decodedPermissions = json_decode($this->permissions, true);
+
+        // Перевести каждый ключ в русское значение, если найден
+        $translatedPermissions = array_map(function ($perm) use ($translations) {
+            return $translations[$perm] ?? $perm;
+        }, $decodedPermissions);
+
+        $permissionsString = implode(', ', $translatedPermissions);
+
         return [
-            'message' => "Вы были уволены из компании {$this->companyName}.
-            Ваши новые права: {$this->permissions}.",
+            'message' => "Вы были уволены из компании {$this->companyName}. Ваши новые права: {$permissionsString}.",
         ];
     }
+
 }

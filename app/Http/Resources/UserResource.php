@@ -23,7 +23,6 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'competence' => $this->competence,
             'photo_file' => $this->photo_file,
-            'role' => $this->role->name,
             'total_tasks' => $totalTasks,
             'completed_tasks' => $completedTasks,
             'tasks' => TaskResource::collection($taskInProgress),
